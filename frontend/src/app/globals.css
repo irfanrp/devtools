@@ -279,7 +279,11 @@ pre {
 /* header / footer */
 .app-header { background: transparent; }
 .app-header img { filter: grayscale(0.2) brightness(0.95); }
-.app-footer { background: transparent; border-color: rgba(15,23,42,0.04); }
+.app-footer { 
+  background: transparent; 
+  border: none; 
+  box-shadow: 0 -4px 32px rgba(15,23,42,0.06);
+}
 /* responsive container used across header/main/footer to keep content centered */
 .container {
   width: 100%;
@@ -311,12 +315,19 @@ pre {
   height: var(--header-height);
   display: flex;
   align-items: center;
-  /* cheaper semi-opaque background instead of heavy blur */
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
-  border-bottom: 1px solid rgba(15,23,42,0.04);
+  background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.70));
+  border-bottom: none;
+  /* Clean elevated look - just shadow depth, no lines */
+  box-shadow: 0 4px 32px rgba(15,23,42,0.08), 
+              0 2px 16px rgba(15,23,42,0.04);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
+
 body[data-theme="dark"] .app-header {
-  background: rgba(2,6,23,0.45);
+  background: linear-gradient(180deg, rgba(15,23,36,0.85), rgba(15,23,36,0.70));
+  box-shadow: 0 4px 32px rgba(2,6,23,0.4), 
+              0 2px 16px rgba(2,6,23,0.2);
 }
 
 /* make header slightly taller on very small screens to improve touch targets */
