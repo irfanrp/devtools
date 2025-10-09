@@ -74,13 +74,16 @@ func detectFormat(content string) string {
 	return "yaml"
 }
 
-// canAutoFixContent checks if content is safe for auto-fix
+// canAutoFixContent checks if content is safe for auto-fix.
+// We only count occurrences that look like YAML mappings (e.g. "key: <space>").
+// This avoids flagging values that include colons (for example Docker image tags like "nginx:1.14.2").
 func canAutoFixContent(content string) (bool, string) {
-	keyRe := regexp.MustCompile(`[A-Za-z0-9_.-]+:`)
+	// match token-like keys followed by a colon and whitespace (mapping syntax)
+	keyRe := regexp.MustCompile(`[A-Za-z0-9_.-]+:\s`)
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		matches := keyRe.FindAllStringIndex(trimmed, -1)
