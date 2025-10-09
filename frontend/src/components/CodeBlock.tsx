@@ -17,7 +17,7 @@ export default function CodeBlock({ code = "", language = "hcl", title = "" }: {
           <button onClick={copy} className="text-sm px-2 py-0.5 btn-primary">Copy</button>
         </div>
       </div>
-      <div className="p-2 max-h-[360px] overflow-auto bg-transparent text-sm">
+      <div className="p-0 max-h-[460px] overflow-auto bg-transparent text-sm">
         {/* eslint-disable @typescript-eslint/no-explicit-any */}
         <Highlight {...(defaultProps as any)} code={code as any} theme={theme as any} language={language as any}>
           {(props: any) => {

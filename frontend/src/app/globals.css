@@ -10,7 +10,9 @@
   --accent: #2563eb; /* blue-600 */
   --accent-strong: #1e40af; /* blue-800 */
   --shadow: rgba(15,23,42,0.06);
+  --header-height: 64px;
   --radius: 10px;
+  --border: rgba(15,23,42,0.08);
 }
 
 /* font variables are set in layout via Google font variables */
@@ -38,6 +40,8 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  min-height: 100vh;
 }
 
 /* Allow manual theme switching via data-theme on body */
@@ -65,7 +69,17 @@ body[data-theme="light"] {
 
 /* Smooth theme transitions */
 body {
-  transition: background-color 180ms ease, color 180ms ease;
+  transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Apply transitions to all themed elements */
+*, *::before, *::after {
+  transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Cards and panels */
@@ -124,7 +138,12 @@ pre {
 .muted { color: var(--muted); }
 
 /* Theme toggle pill */
-.theme-toggle { display: inline-flex; align-items: center; }
+.theme-toggle { 
+  display: inline-flex; 
+  align-items: center;
+  isolation: isolate;
+}
+
 .toggle-pill {
   --w: 46px;
   display: inline-flex;
@@ -139,33 +158,165 @@ pre {
   border: 1px solid rgba(15,23,42,0.06);
   position: relative;
   cursor: pointer;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-.toggle-pill .icon { opacity: 0.9; transition: opacity 160ms; color: var(--muted); }
+
+.toggle-pill .icon { 
+  opacity: 0.9; 
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--muted);
+  z-index: 1;
+}
+
 .toggle-knob {
+  position: absolute;
   width: 20px;
   height: 20px;
   background: var(--card);
   border-radius: 50%;
-  box-shadow: 0 6px 12px rgba(2,6,23,0.06);
+  box-shadow: 0 2px 6px rgba(2,6,23,0.1);
   transform: translateX(2px);
-  transition: transform 220ms cubic-bezier(.2,.9,.3,1), background 160ms, box-shadow 160ms;
+  transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
 }
-.toggle-pill.is-dark .toggle-knob { transform: translateX(22px); background: linear-gradient(180deg,#0b1220,#071126); box-shadow: 0 6px 16px rgba(2,6,23,0.4); }
-.toggle-pill .icon-moon { position: absolute; right: 6px; opacity: 0.6; }
-.toggle-pill .icon-sun { position: absolute; left: 6px; opacity: 0.9; }
 
-.toggle-pill:focus { outline: 3px solid rgba(37,99,235,0.12); }
-.toggle-pill:hover { border-color: rgba(15,23,42,0.12); }
+.toggle-pill.is-dark .toggle-knob { 
+  transform: translateX(22px);
+  background: linear-gradient(180deg, #1a365d, #0f2744);
+  box-shadow: 
+    0 2px 8px rgba(2,6,23,0.2),
+    0 0 0 1px rgba(255,255,255,0.1) inset;
+}
+
+.toggle-pill .icon-moon { 
+  position: absolute; 
+  right: 6px; 
+  opacity: 0.6;
+  transform: scale(0.8);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-pill .icon-sun { 
+  position: absolute; 
+  left: 6px; 
+  opacity: 0.9;
+  transform: scale(0.8);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-pill:hover {
+  border-color: rgba(15,23,42,0.12);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.toggle-pill:focus { 
+  outline: none;
+  box-shadow: 
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--accent);
+}
+
+.toggle-pill:active .toggle-knob {
+  transform: scale(0.9) translateX(2px);
+}
+
+.toggle-pill.is-dark:active .toggle-knob {
+  transform: scale(0.9) translateX(22px);
+}
+
+/* Improve icon transitions */
+.toggle-pill.is-dark .icon-sun { 
+  opacity: 0.4;
+  transform: scale(0.6); 
+}
+
+.toggle-pill:not(.is-dark) .icon-moon { 
+  opacity: 0.4;
+  transform: scale(0.6);
+}
 
 /* line number gutter styles for CodeBlock */
 .code-with-lines { counter-reset: linenumber; }
-.code-line { display: flex; gap: 12px; align-items: flex-start; padding: 2px 8px; }
-.line-number { width: 44px; text-align: right; padding-right: 12px; color: rgba(99,102,241,0.6); font-size: 12px; user-select: none; }
-.line-content { flex: 1; white-space: pre; }
-.code-with-lines .token.comment { opacity: 0.8; }
+.code-line { 
+  display: flex; 
+  gap: 16px; 
+  align-items: flex-start; 
+  padding: 1px 8px;
+  border-left: 3px solid transparent;
+}
+.code-line:hover {
+  background: rgba(99,102,241,0.04);
+  border-left-color: var(--accent);
+}
+.line-number { 
+  min-width: 40px; 
+  text-align: right; 
+  padding-right: 8px;
+  color: var(--muted);
+  opacity: 0.5;
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  user-select: none;
+  transition: opacity 100ms ease;
+}
+.code-line:hover .line-number {
+  opacity: 0.8;
+  color: var(--accent);
+}
+.line-content { 
+  flex: 1; 
+  white-space: pre;
+  padding: 1px 0;
+}
+.code-with-lines .token.comment { opacity: 0.6; }
 
 /* header / footer */
 .app-header { background: transparent; }
 .app-header img { filter: grayscale(0.2) brightness(0.95); }
 .app-footer { background: transparent; border-color: rgba(15,23,42,0.04); }
-.app-shell main { padding: 1.25rem; }
+/* responsive container used across header/main/footer to keep content centered */
+.container {
+  width: 100%;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
+}
+.container-sm { max-width: 880px; }
+.container-lg { max-width: 1400px; }
+
+/* make card subtle but visible */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 4px 6px -1px var(--shadow),
+    0 2px 4px -2px var(--shadow);
+}
+
+/* sticky header (keeps navigation visible) */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.02);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(15,23,42,0.04);
+}
+body[data-theme="dark"] .app-header {
+  background: rgba(2,6,23,0.45);
+}
+
+/* make header slightly taller on very small screens to improve touch targets */
+@media (max-width: 420px) {
+  :root { --header-height: 64px; }
+  body { padding-top: var(--header-height); }
+  .app-header { height: var(--header-height); }
+}
