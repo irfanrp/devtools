@@ -3,7 +3,7 @@ import React from "react";
 import Highlight, { defaultProps } from "prism-react-renderer";
 import theme from "prism-react-renderer/themes/duotoneLight";
 
-export default function CodeBlock({ code = "", language = "hcl", title = "" }: { code?: string; language?: string; title?: string }) {
+function CodeBlock({ code = "", language = "hcl", title = "" }: { code?: string; language?: string; title?: string }) {
   const copy = async () => {
     await navigator.clipboard.writeText(code);
     // Could add a small tooltip or toast later
@@ -50,3 +50,6 @@ export default function CodeBlock({ code = "", language = "hcl", title = "" }: {
     </div>
   );
 }
+
+// memoize to avoid re-rendering when props don't change
+export default React.memo(CodeBlock);

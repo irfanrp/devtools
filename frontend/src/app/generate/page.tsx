@@ -112,7 +112,7 @@ export default function GeneratePage() {
     };
 
     try {
-      const urls = ['http://backend:8080', 'http://localhost:8080'];
+      const urls = ['http://localhost:8080', 'http://backend:8080'];
       let resp: Response | null = null;
       let error: any = null;
 

@@ -2,22 +2,26 @@
 import React from "react";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
-    try {
-      const stored = localStorage.getItem('theme') as 'light' | 'dark' | null;
-      if (stored) return stored;
-      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
-      return 'light';
-    } catch (e) {
-      return 'light';
-    }
-  });
+  // start as null so SSR and client initial render match; determine theme on mount
+  const [theme, setTheme] = React.useState<'light' | 'dark' | null>(null);
 
   // apply theme and persist
   React.useEffect(() => {
     try {
-      document.body.setAttribute('data-theme', theme);
-      localStorage.setItem('theme', theme);
+      // if theme is null, compute initial preference from storage or system
+      let t: 'light' | 'dark' | null = theme;
+      if (!t) {
+        const stored = localStorage.getItem('theme') as 'light' | 'dark' | null;
+        if (stored) t = stored;
+        else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
+        else t = 'light';
+        setTheme(t);
+      }
+
+      if (t) {
+        document.body.setAttribute('data-theme', t);
+        localStorage.setItem('theme', t);
+      }
     } catch (e) {}
   }, [theme]);
 
