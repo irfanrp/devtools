@@ -70,9 +70,20 @@ ${tagLines}
 `;
   },
 
-  outputs: () => `output "vpc_id" { value = aws_vpc.this.id }
-output "subnet_id" { value = aws_subnet.this.id }
-output "igw_id" { value = aws_internet_gateway.this.id }
+  outputs: () => `output "vpc_id" {
+  description = "The VPC ID"
+  value       = aws_vpc.this.id
+}
+
+output "subnet_id" {
+  description = "The subnet ID"
+  value       = aws_subnet.this.id
+}
+
+output "igw_id" {
+  description = "The internet gateway ID"
+  value       = aws_internet_gateway.this.id
+}
 `,
 
   tfvars: (inputs: TemplateInputs) => {

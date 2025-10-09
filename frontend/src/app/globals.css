@@ -1,26 +1,171 @@
 @import "tailwindcss";
 
+/* Minimal, light-first design tokens */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f8fb; /* very light gray */
+  --foreground: #0f1724; /* near-black for text */
+  --muted: #6b7280; /* muted gray */
+  --surface: #ffffff; /* form surfaces */
+  --card: #fbfdff; /* subtle card bg */
+  --accent: #2563eb; /* blue-600 */
+  --accent-strong: #1e40af; /* blue-800 */
+  --shadow: rgba(15,23,42,0.06);
+  --radius: 10px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* font variables are set in layout via Google font variables */
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f1724; /* soft dark blue/black */
+    --foreground: #e6eef8; /* off-white */
+    --muted: #94a3b8;
+    --surface: #0b1220;
+    --card: #071126;
+    --accent: #4f46e5;
+    --accent-strong: #312e81;
+    --shadow: rgba(2,6,23,0.6);
   }
+}
+
+html, body, #__next {
+  height: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Allow manual theme switching via data-theme on body */
+body[data-theme="dark"] {
+  --background: #0f1724;
+  --foreground: #e6eef8;
+  --muted: #94a3b8;
+  --surface: #0b1220;
+  --card: #071126;
+  --accent: #4f46e5;
+  --accent-strong: #312e81;
+  --shadow: rgba(2,6,23,0.6);
+}
+
+body[data-theme="light"] {
+  --background: #f7f8fb;
+  --foreground: #0f1724;
+  --muted: #6b7280;
+  --surface: #ffffff;
+  --card: #fbfdff;
+  --accent: #2563eb;
+  --accent-strong: #1e40af;
+  --shadow: rgba(15,23,42,0.06);
+}
+
+/* Smooth theme transitions */
+body {
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+/* Cards and panels */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid rgba(15,23,42,0.04);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.panel {
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid rgba(15,23,42,0.04);
+  padding: 0.125rem; /* small padding for summary */
+}
+
+/* Form elements (inputs, selects, textareas) */
+.form-element {
+  background: var(--surface) !important;
+  color: var(--foreground) !important;
+  border: 1px solid rgba(15,23,42,0.06);
+  padding: 0.5rem 0.5rem;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.form-element:focus {
+  outline: 2px solid rgba(37,99,235,0.12);
+  border-color: var(--accent);
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border-radius: 8px;
+  padding: 0.375rem 0.75rem;
+  border: none;
+}
+.btn-primary:hover { background: var(--accent-strong); }
+
+.code-header {
+  background: rgba(15,23,42,0.02);
+  border-bottom: 1px solid rgba(15,23,42,0.04);
+  padding: 0.4rem 0.5rem;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+pre {
+  margin: 0;
+}
+
+/* small helpers */
+.muted { color: var(--muted); }
+
+/* Theme toggle pill */
+.theme-toggle { display: inline-flex; align-items: center; }
+.toggle-pill {
+  --w: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: var(--w);
+  height: 28px;
+  padding: 4px;
+  background: var(--surface);
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,0.06);
+  position: relative;
+  cursor: pointer;
+}
+.toggle-pill .icon { opacity: 0.9; transition: opacity 160ms; color: var(--muted); }
+.toggle-knob {
+  width: 20px;
+  height: 20px;
+  background: var(--card);
+  border-radius: 50%;
+  box-shadow: 0 6px 12px rgba(2,6,23,0.06);
+  transform: translateX(2px);
+  transition: transform 220ms cubic-bezier(.2,.9,.3,1), background 160ms, box-shadow 160ms;
+}
+.toggle-pill.is-dark .toggle-knob { transform: translateX(22px); background: linear-gradient(180deg,#0b1220,#071126); box-shadow: 0 6px 16px rgba(2,6,23,0.4); }
+.toggle-pill .icon-moon { position: absolute; right: 6px; opacity: 0.6; }
+.toggle-pill .icon-sun { position: absolute; left: 6px; opacity: 0.9; }
+
+.toggle-pill:focus { outline: 3px solid rgba(37,99,235,0.12); }
+.toggle-pill:hover { border-color: rgba(15,23,42,0.12); }
+
+/* line number gutter styles for CodeBlock */
+.code-with-lines { counter-reset: linenumber; }
+.code-line { display: flex; gap: 12px; align-items: flex-start; padding: 2px 8px; }
+.line-number { width: 44px; text-align: right; padding-right: 12px; color: rgba(99,102,241,0.6); font-size: 12px; user-select: none; }
+.line-content { flex: 1; white-space: pre; }
+.code-with-lines .token.comment { opacity: 0.8; }
+
+/* header / footer */
+.app-header { background: transparent; }
+.app-header img { filter: grayscale(0.2) brightness(0.95); }
+.app-footer { background: transparent; border-color: rgba(15,23,42,0.04); }
+.app-shell main { padding: 1.25rem; }

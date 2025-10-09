@@ -43,9 +43,10 @@ ${tagLines}
 `;
   },
 
-  outputs: () => `output "subnet_id" { 
-    value = aws_subnet.this.id 
-  }
+  outputs: () => `output "subnet_id" {
+  description = "The subnet ID"
+  value       = aws_subnet.this.id
+}
 `,
 
   tfvars: (inputs: TemplateInputs) => {

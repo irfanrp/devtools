@@ -107,11 +107,14 @@ variable "root_volume_type" {
 `;
   },
 
-  outputs: () => `output "instance_id" { 
-  value = aws_instance.this.id 
+  outputs: () => `output "instance_id" {
+  description = "The EC2 instance ID"
+  value       = aws_instance.this.id
 }
-output "public_ip" { 
-  value = aws_instance.this.public_ip 
+
+output "public_ip" {
+  description = "The public IP address of the instance"
+  value       = aws_instance.this.public_ip
 }
 `,
 

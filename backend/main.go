@@ -11,24 +11,32 @@ import (
 
 func main() {
 	r := gin.Default()
+
+	// CORS middleware - handle all CORS including OPTIONS
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
 	})
 
-	api := r.Group("/api")
-	{
-		api.POST("/validate", handlers.ValidateHandler)
-		api.POST("/fix", handlers.FixHandler)
-	}
+	// Register routes directly instead of using groups
+	r.POST("/api/validate", handlers.ValidateHandler)
+	r.POST("/api/fix", handlers.FixHandler)
+	r.POST("/api/format-zip", handlers.FormatAndZipHandler)
+	r.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-
-	r.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	_ = r.Run(":" + port)
 }
