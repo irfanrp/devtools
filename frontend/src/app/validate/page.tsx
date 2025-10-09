@@ -201,6 +201,18 @@ export default function ValidatePage() {
     }
   }
 
+  // Try to extract a line number from an error message when the error.line is 0.
+  // Backend sometimes returns a message like "auto-fix refused: line 8 contains..."
+  function parseLineFromMessage(msg: string): number | null {
+    if (!msg) return null;
+    const m = msg.match(/line\s*(\d+)/i);
+    if (m && m[1]) {
+      const n = parseInt(m[1], 10);
+      if (!isNaN(n)) return n;
+    }
+    return null;
+  }
+
   return (
     <div className="w-full py-6">
       <div className="container container-sm mx-auto px-4">
@@ -261,12 +273,16 @@ export default function ValidatePage() {
 
             {errors.length > 0 && (
               <div className="space-y-2">
-                {errors.map((error, i) => (
-                  <div key={i} className="text-sm bg-red-500/10 text-red-600 p-3 rounded">
-                    <div className="font-medium">Line {error.line}</div>
-                    <div>{error.message}</div>
-                  </div>
-                ))}
+                    {errors.map((error, i) => {
+                      // Determine which line to show: prefer explicit error.line, otherwise try parse from message
+                      const parsed = error.line && error.line > 0 ? error.line : parseLineFromMessage(error.message ?? "");
+                      return (
+                        <div key={i} className="text-sm bg-red-500/10 text-red-600 p-3 rounded">
+                          {parsed ? <div className="font-medium">Line {parsed}</div> : null}
+                          <div>{error.message}</div>
+                        </div>
+                      );
+                    })}
               </div>
             )}
 
