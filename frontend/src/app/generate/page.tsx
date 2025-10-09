@@ -8,6 +8,7 @@ import { getResources } from "../../lib/resourceLoader";
 import { REGIONS } from "../../lib/regions";
 import CodeBlock from "../../components/CodeBlock";
 import { useState, useEffect } from "react";
+import { getApiUrls } from "../../lib/getApiUrls";
 
 export default function GeneratePage() {
   const [provider, setProvider] = useState<Provider>("aws");
@@ -112,7 +113,7 @@ export default function GeneratePage() {
     };
 
     try {
-      const urls = ['http://localhost:8080', 'http://backend:8080'];
+  const urls = getApiUrls();
       let resp: Response | null = null;
       let error: any = null;
 

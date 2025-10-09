@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import CodeBlock from "../../components/CodeBlock";
+import { getApiUrls } from "../../lib/getApiUrls";
 import YAML from 'js-yaml';
 
 type ValidationResult = {
@@ -45,7 +46,7 @@ export default function ValidatePage() {
         schemaContent: schema === "custom" ? schemaContent : undefined
       };
 
-      const urls = ["http://localhost:8080", "http://backend:8080"];
+  const urls = getApiUrls();
       let resp: Response | null = null;
       let error: any = null;
 
@@ -95,7 +96,7 @@ export default function ValidatePage() {
     try {
       const payload = { content: input };
 
-      const urls = ["http://localhost:8080", "http://backend:8080"];
+  const urls = getApiUrls();
       let resp: Response | null = null;
       let error: any = null;
 
