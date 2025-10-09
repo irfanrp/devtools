@@ -1,0 +1,17 @@
+{
+  "name": "devformat-shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for DevFormat.io",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": ["yaml", "linter", "devops", "shared"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
