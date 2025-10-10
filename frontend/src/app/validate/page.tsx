@@ -23,9 +23,19 @@ type ValidationResult = {
       description: string;
     }>;
   };
+  suggestedFixes?: Array<{
+    id: string;
+    shortDescription: string;
+    confidence: "high" | "medium" | "low";
+    line?: number;
+    fixedSnippet: string;
+    patchType?: string;
+    startLine?: number;
+    endLine?: number;
+  }>;
 };
 
-type SchemaType = "kubernetes" | "helm" | "custom" | "none";
+type SchemaType = "kubernetes" | "helm" | "custom" | "json" | "none";
 
 export default function ValidatePage() {
   const [input, setInput] = useState("");
@@ -35,6 +45,7 @@ export default function ValidatePage() {
   const [loading, setLoading] = useState(false);
   const [showTransformModal, setShowTransformModal] = useState(false);
   const [transformPreview, setTransformPreview] = useState<string | null>(null);
+  const [useAI, setUseAI] = useState<boolean>(false);
 
   // derived safely-typed locals to avoid nullable access in JSX
   const errors = result?.errors ?? [];
@@ -72,7 +83,8 @@ export default function ValidatePage() {
       const payload = {
         content: input,
         schema: schema === "none" ? undefined : schema,
-        schemaContent: schema === "custom" ? schemaContent : undefined
+        schemaContent: schema === "custom" ? schemaContent : undefined,
+        useAI: useAI,
       };
 
   const urls = getApiUrls();
@@ -170,7 +182,7 @@ export default function ValidatePage() {
         // if YAML parsing fails here, continue with backend auto-fix attempt
       }
 
-      const payload = { content: input };
+  const payload = { content: input, useAI: useAI };
 
   const urls = getApiUrls();
       let resp: Response | null = null;
@@ -267,6 +279,28 @@ export default function ValidatePage() {
     setTimeout(() => validate(), 100);
   };
 
+  const applySuggestion = (sugg: NonNullable<ValidationResult['suggestedFixes']>[0]) => {
+    if (!sugg || !sugg.fixedSnippet) return;
+    const srcLines = input.split(/\r?\n/);
+    const snippetLines = sugg.fixedSnippet.split(/\r?\n/);
+
+    // Use provided startLine/endLine if present, otherwise fall back to previous behavior
+    const startLine = (sugg.startLine ?? sugg.line ?? 1) - 1; // zero-based
+    const endLine = (sugg.endLine ?? (startLine + snippetLines.length - 1)) - 0; // zero-based inclusive
+
+    const clampedStart = Math.max(0, Math.min(srcLines.length, startLine));
+    const clampedEnd = Math.max(0, Math.min(srcLines.length - 1, endLine));
+
+    const newLines = [
+      ...srcLines.slice(0, clampedStart),
+      ...snippetLines,
+      ...srcLines.slice(clampedEnd + 1),
+    ];
+    const newContent = newLines.join('\n');
+    setInput(newContent);
+    setTimeout(() => validate(), 150);
+  };
+
   // simple client-side auto-fix fallback using js-yaml for YAML and JSON pretty-print
   function autoFixFallback(src: string) {
     // try JSON first
@@ -325,6 +359,7 @@ export default function ValidatePage() {
                 <option value="none">No Schema</option>
                 <option value="kubernetes">Kubernetes</option>
                 <option value="helm">Helm Chart</option>
+                <option value="json">JSON</option>
                 <option value="custom">Custom Schema</option>
               </select>
             </div>
@@ -358,6 +393,11 @@ export default function ValidatePage() {
               </button>
             </div>
 
+            <div className="flex items-center gap-2 mt-2">
+              <input id="use-ai" type="checkbox" checked={useAI} onChange={(e) => setUseAI(e.target.checked)} />
+              <label htmlFor="use-ai" className="text-sm">Use AI (Gemini) for suggestions</label>
+            </div>
+
             {/* Keep result pinned removed; results persist until user edits */}
 
             {result && (
@@ -378,6 +418,25 @@ export default function ValidatePage() {
                         </div>
                       );
                     })}
+              </div>
+            )}
+
+            {result?.suggestedFixes && result.suggestedFixes.length > 0 && (
+              <div className="space-y-2 mt-3">
+                <div className="font-medium text-sm mb-1">Suggested Fixes</div>
+                {result.suggestedFixes.map((sugg, i) => (
+                  <div key={sugg.id ?? i} className="text-sm bg-yellow-500/10 text-yellow-700 p-3 rounded">
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium">{sugg.shortDescription}</div>
+                      <div className="text-xs px-2 py-1 rounded bg-white/10">{sugg.confidence}</div>
+                    </div>
+                    <pre className="mt-2 p-2 bg-white/5 rounded text-xs font-mono overflow-auto">{sugg.fixedSnippet}</pre>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => applySuggestion(sugg)} className="btn-primary text-sm">Apply</button>
+                      <button onClick={() => { navigator.clipboard?.writeText(sugg.fixedSnippet) }} className="btn-secondary text-sm">Copy</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
