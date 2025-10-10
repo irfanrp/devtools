@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -157,6 +158,45 @@ func tryFixYAML(content string) (map[string]any, error) {
 	fixedContent := strings.Join(fixed, "\n")
 	var result map[string]any
 	err := yaml.Unmarshal([]byte(fixedContent), &result)
+	if err == nil {
+		return result, nil
+	}
+
+	// targeted heuristic: if parser complains about missing '-' indicator,
+	// try inserting a list marker at the reported line aligned under parent
+	if strings.Contains(err.Error(), "did not find expected '-' indicator") {
+		// look for `line N` in error
+		lineRe := regexp.MustCompile(`line (\d+)`)
+		m := lineRe.FindStringSubmatch(err.Error())
+		if len(m) == 2 {
+			if idx, perr := strconv.Atoi(m[1]); perr == nil {
+				i := idx - 1
+				if i >= 0 && i < len(lines) {
+					// find previous non-empty line to estimate parent indent
+					prev := i - 1
+					for prev >= 0 && strings.TrimSpace(lines[prev]) == "" {
+						prev--
+					}
+					prevLead := 0
+					if prev >= 0 {
+						prevLead = len(lines[prev]) - len(strings.TrimLeft(lines[prev], " "))
+					}
+					newLead := prevLead + 2
+					// Only apply if current line is not already a list item
+					if !strings.HasPrefix(strings.TrimSpace(lines[i]), "-") {
+						lines[i] = strings.Repeat(" ", newLead) + "- " + strings.TrimSpace(lines[i])
+						fixed2 := strings.Join(lines, "\n")
+						var result2 map[string]any
+						if err2 := yaml.Unmarshal([]byte(fixed2), &result2); err2 == nil {
+							return result2, nil
+						}
+						// if still fails, fall through to original error
+					}
+				}
+			}
+		}
+	}
+
 	return result, err
 }
 
@@ -341,6 +381,35 @@ func FixHandler(c *gin.Context) {
 				"canAutoFix":   false,
 			})
 			return
+		}
+
+		// Refuse to auto-fix structural issues that require human judgement:
+		// - metadata explicitly set to null (must be a mapping)
+		// - top-level `name` present but metadata.name missing
+		if val, ok := m["metadata"]; ok {
+			if val == nil {
+				c.JSON(http.StatusOK, gin.H{
+					"fixedContent": nil,
+					"changes":      []any{},
+					"isValid":      false,
+					"errors":       []ValidationError{{Message: "auto-fix refused: `metadata` is null. Please correct the document manually.", Severity: "warning", Type: "autofix"}},
+					"canAutoFix":   false,
+				})
+				return
+			}
+		}
+
+		if _, hasName := m["name"]; hasName {
+			if md, ok := m["metadata"].(map[string]any); !ok || md == nil || md["name"] == nil {
+				c.JSON(http.StatusOK, gin.H{
+					"fixedContent": nil,
+					"changes":      []any{},
+					"isValid":      false,
+					"errors":       []ValidationError{{Message: "auto-fix refused: top-level `name` detected. Move `name` into `metadata.name` manually.", Severity: "warning", Type: "autofix"}},
+					"canAutoFix":   false,
+				})
+				return
+			}
 		}
 
 		changes = append(changes, map[string]any{"line": 1, "description": "fixed YAML indentation"})
