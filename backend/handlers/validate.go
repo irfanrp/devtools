@@ -874,8 +874,29 @@ func syscallLookupEnv(k string) (string, bool) {
 // lookupEnvImpl is assigned to os.LookupEnv at init
 var lookupEnvImpl = func(k string) (string, bool) { return "", false }
 
+// getMaxPayloadBytes returns the maximum allowed request payload size in bytes.
+// It can be configured with environment variables:
+// - MAX_PAYLOAD_BYTES (absolute bytes)
+// - MAX_PAYLOAD_MB (size in megabytes)
+// Defaults to 2 MiB.
+func getMaxPayloadBytes() int64 {
+	if v, ok := syscallEnv("MAX_PAYLOAD_BYTES"); ok {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			return n
+		}
+	}
+	if v, ok := syscallEnv("MAX_PAYLOAD_MB"); ok {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			return n * 1024 * 1024
+		}
+	}
+	return int64(2 * 1024 * 1024) // 2 MiB default
+}
+
 func ValidateHandler(c *gin.Context) {
 	var req ValidateRequest
+	// Enforce maximum payload size to avoid resource exhaustion
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, getMaxPayloadBytes())
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": err.Error()})
 		return
@@ -1014,6 +1035,8 @@ func ValidateHandler(c *gin.Context) {
 
 func FixHandler(c *gin.Context) {
 	var req FixRequest
+	// Enforce maximum payload size to avoid resource exhaustion
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, getMaxPayloadBytes())
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": err.Error()})
 		return

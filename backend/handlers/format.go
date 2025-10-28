@@ -3,6 +3,7 @@ package handlers
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,6 +27,8 @@ type FormatRequest struct {
 
 func FormatAndZipHandler(c *gin.Context) {
 	var req FormatRequest
+	// Enforce maximum payload size to avoid resource exhaustion
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, getMaxPayloadBytes())
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": err.Error()})
 		return
@@ -56,7 +61,10 @@ func FormatAndZipHandler(c *gin.Context) {
 	// run terraform fmt if terraform binary exists
 	if _, err := exec.LookPath("terraform"); err == nil {
 		fmt.Printf("Running terraform fmt in directory: %s\n", tmpDir)
-		cmd := exec.Command("terraform", "fmt", "-recursive", "-list=true")
+		// run with a timeout context to avoid hanging processes
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "terraform", "fmt", "-recursive", "-list=true")
 		cmd.Dir = tmpDir
 
 		// Capture output for debugging
@@ -64,6 +72,11 @@ func FormatAndZipHandler(c *gin.Context) {
 		fmt.Printf("Terraform fmt output: %s\n", string(output))
 
 		if err != nil {
+			// If context deadline exceeded, return a clear error
+			if ctx.Err() == context.DeadlineExceeded {
+				c.JSON(http.StatusGatewayTimeout, gin.H{"error": "terraform fmt timed out"})
+				return
+			}
 			fmt.Printf("Terraform fmt error: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("terraform fmt failed: %v - %s", err, string(output))})
 			return
@@ -114,9 +127,16 @@ func FormatAndZipHandler(c *gin.Context) {
 		return
 	}
 
+	// Sanitize requested name to avoid header injection or path issues.
 	zipName := "module.zip"
 	if req.Name != "" {
-		zipName = fmt.Sprintf("%s.zip", req.Name)
+		// allow letters, numbers, '-', '_' and '.' only; replace others with '-'
+		re := regexp.MustCompile(`[^A-Za-z0-9._-]`)
+		safe := re.ReplaceAllString(req.Name, "-")
+		if safe == "" {
+			safe = "module"
+		}
+		zipName = fmt.Sprintf("%s.zip", safe)
 	}
 
 	c.Header("Content-Type", "application/zip")
