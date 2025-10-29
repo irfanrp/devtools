@@ -23,7 +23,12 @@ import { vpc } from './templates/aws/vpc';
 import { subnet as subnetTpl } from './templates/aws/subnet';
 import { security_group as securityGroup } from './templates/aws/security_group';
 import { vpc_basic } from './templates/aws/vpc_basic';
+import { rds } from './templates/aws/rds';
+import { iam_role } from './templates/aws/iam_role';
+import { alb } from './templates/aws/alb';
+import { route53 } from './templates/aws/route53';
 import { storage_bucket as gcpStorageBucket } from './templates/gcp/storage_bucket';
+import { cloud_run as gcpCloudRun } from './templates/gcp/cloud_run';
 import { storage_account as azureStorageAccount } from './templates/azure/storage_account';
 
 // Resource types per provider
@@ -32,6 +37,9 @@ export const RESOURCES: Record<Provider, Array<{value: string, label: string}>> 
     { value: 's3_bucket', label: 'S3 Bucket' },
     { value: 'instance', label: 'EC2 Instance' },
     { value: 'db_instance', label: 'RDS Database' },
+    { value: 'iam_role', label: 'IAM Role' },
+    { value: 'alb', label: 'Application Load Balancer' },
+    { value: 'route53', label: 'Route53 Zone/Record' },
     { value: 'lambda_function', label: 'Lambda Function' },
     { value: 'cloudfront_distribution', label: 'CloudFront Distribution' },
     { value: 'vpc', label: 'VPC' },
@@ -44,6 +52,7 @@ export const RESOURCES: Record<Provider, Array<{value: string, label: string}>> 
   ],
   gcp: [
     { value: 'storage_bucket', label: 'Storage Bucket' },
+    { value: 'cloud_run_service', label: 'Cloud Run Service' },
     { value: 'compute_instance', label: 'Compute Instance' },
   ],
   azure: [
@@ -59,6 +68,11 @@ const TEMPLATES: Record<Provider, Record<string, TemplateFns>> = {
 
         instance: ec2 as unknown as TemplateFns,
 
+        db_instance: rds as unknown as TemplateFns,
+        iam_role: iam_role as unknown as TemplateFns,
+        alb: alb as unknown as TemplateFns,
+        route53: route53 as unknown as TemplateFns,
+
         vpc: vpc as unknown as TemplateFns,
 
         subnet: subnetTpl as unknown as TemplateFns,
@@ -69,6 +83,7 @@ const TEMPLATES: Record<Provider, Record<string, TemplateFns>> = {
       },
       gcp: {
         storage_bucket: gcpStorageBucket as unknown as TemplateFns,
+        cloud_run_service: gcpCloudRun as unknown as TemplateFns,
       },
       azure: {
         storage_account: azureStorageAccount as unknown as TemplateFns,

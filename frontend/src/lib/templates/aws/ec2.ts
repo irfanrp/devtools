@@ -24,8 +24,12 @@ export const ec2: TemplateFns = {
   variables: (inputs: TemplateInputs) => {
     const { name, region, tags = {} } = inputs as any;
     const tagLines = Object.entries(tags)
-      .map(([k, v]) => `    ${k} = "${v}"`)
+      .map(([k, v]) => `  ${JSON.stringify(k)} = ${JSON.stringify(v)}`)
       .join('\n');
+    const tagBlock = Object.keys(tags).length ? `{
+${tagLines}
+}` : "{}";
+
     return `variable "name" {
   description = "Instance Name tag"
   type        = string
@@ -53,9 +57,7 @@ variable "instance_type" {
 variable "tags" {
   description = "Resource tags"
   type        = map(string)
-  default     = {
-${tagLines}
-  }
+  default     = ${tagBlock}
 }
 
 variable "subnet_id" {
@@ -121,8 +123,11 @@ output "public_ip" {
   tfvars: (inputs: TemplateInputs) => {
     const { name, region, tags = {} } = inputs as any;
     const tagLines = Object.entries(tags)
-      .map(([k, v]) => `  ${k} = "${v}"`)
+      .map(([k, v]) => `  ${JSON.stringify(k)} = ${JSON.stringify(v)}`)
       .join('\n');
+    const tagBlock = Object.keys(tags).length ? `{
+${tagLines}
+}` : "{}";
     return `# terraform.tfvars for EC2 example
 name               = "${name}"
 region             = "${region ?? ''}"
@@ -150,9 +155,7 @@ associate_public_ip = true
 root_volume_size = 8
 root_volume_type = "gp3"
 
-tags = {
-${tagLines}
-}
+tags = ${tagBlock}
 `;
   },
 };

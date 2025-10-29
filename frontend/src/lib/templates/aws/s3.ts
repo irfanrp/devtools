@@ -57,8 +57,14 @@ resource "aws_s3_bucket_policy" "this" {
   variables: (inputs: TemplateInputs) => {
     const { name, region, tags = {}, options = {} } = inputs as any;
     const tagLines = Object.entries(tags)
-      .map(([k, v]) => `    ${k} = "${v}"`)
+      .map(([k, v]) => `  ${JSON.stringify(k)} = ${JSON.stringify(v)}`)
       .join('\n');
+    const tagBlock = Object.keys(tags).length ? `{
+${tagLines}
+}` : "{}";
+
+    const versioningDefault = options.versioning ?? false;
+
     return `variable "name" {
   description = "S3 bucket name (globally unique)"
   type        = string
@@ -86,7 +92,7 @@ variable "force_destroy" {
 variable "versioning" {
   description = "Enable versioning for objects"
   type        = bool
-  default     = ${options.versioning ?? false}
+  default     = ${versioningDefault}
 }
 
 variable "sse_algorithm" {
@@ -165,9 +171,7 @@ variable "bucket_policy" {
 variable "tags" {
   description = "Resource tags"
   type        = map(string)
-  default     = {
-${tagLines}
-  }
+  default     = ${tagBlock}
 }
     `;
   },
@@ -216,8 +220,11 @@ output "public_access_block" {
   tfvars: (inputs: any) => {
     const { name, region, tags = {}, options = {} } = inputs;
     const tagLines = Object.entries(tags)
-      .map(([k, v]) => `  ${k} = "${v}"`)
+      .map(([k, v]) => `  ${JSON.stringify(k)} = ${JSON.stringify(v)}`)
       .join('\n');
+    const tagBlock = Object.keys(tags).length ? `{
+${tagLines}
+}` : "{}";
 
     // allow UI to pass options for public access block and other toggles
     const versioning = options.versioning ?? false;
@@ -256,9 +263,7 @@ ignore_public_acls = ${ignore_public_acls}
 restrict_public_buckets = ${restrict_public_buckets}
 create_bucket_policy = ${create_bucket_policy}
 bucket_policy = "${bucket_policy}"
-tags = {
-${tagLines}
-}
+tags = ${tagBlock}
 `;
   },
 };

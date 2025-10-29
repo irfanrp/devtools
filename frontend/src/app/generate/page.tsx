@@ -13,7 +13,8 @@ import { getApiUrls } from "../../lib/getApiUrls";
 export default function GeneratePage() {
   const [provider, setProvider] = useState<Provider>("aws");
   const [resourceType, setResourceType] = useState(RESOURCES.aws[0].value);
-  const [resources, setResources] = useState(() => RESOURCES.aws.slice(0, 6));
+  // show full resource list by default so recently-added templates appear immediately
+  const [resources, setResources] = useState(() => RESOURCES.aws);
   const [resourcesLoading, setResourcesLoading] = useState(false);
 
   const getDefaultName = (prov: Provider, res: string) => {
@@ -38,7 +39,7 @@ export default function GeneratePage() {
   const [tagsRaw, setTagsRaw] = useState("Environment=dev\nOwner=team");
 
   useEffect(() => {
-    setResources(RESOURCES[provider].slice(0, 6));
+    setResources(RESOURCES[provider]);
   }, []);
 
   const handleProviderChange = (newProvider: Provider) => {
