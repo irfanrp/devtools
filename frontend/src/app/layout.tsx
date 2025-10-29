@@ -48,11 +48,14 @@ export default function RootLayout({
 
           <main className="flex-1 mt-[var(--header-height)]">{children}</main>
 
-          <footer className="app-footer w-full text-sm muted border-t">
-            <div className="container py-4 flex items-center justify-between">
-              <div>© {new Date().getFullYear()} DevFormat — Minimal Terraform snippets</div>
-              <div>
-                <a href="https://github.com/irfanrp/devtools" target="_blank" rel="noreferrer" className="underline">Repo</a>
+          <footer className="app-header">
+            <div className="container mx-auto h-[var(--header-height)] flex items-center justify-between px-4">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold">DevFormat</span>
+                <span className="hidden sm:inline"> — Smart DevOps Formatter &amp; Generator</span>
+              </p>
+              <div className="flex items-center space-x-4">
+                <p className="text-sm text-muted-foreground">Built with <span aria-hidden>♥️</span></p>
               </div>
             </div>
           </footer>
