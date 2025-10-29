@@ -30,7 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <div className="flex min-h-screen flex-col">
-          <header className="app-header fixed top-0 left-0 right-0 z-50">
+          <header className="app-header">
             <div className="container mx-auto h-[var(--header-height)] flex items-center justify-between px-4">
               <a href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <img src="/file.svg" alt="logo" className="w-8 h-8" />
@@ -48,7 +48,7 @@ export default function RootLayout({
 
           <main className="flex-1 mt-[var(--header-height)]">{children}</main>
 
-          <footer className="app-header">
+          <footer className="app-footer">
             <div className="container mx-auto h-[var(--header-height)] flex items-center justify-between px-4">
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold">DevFormat</span>

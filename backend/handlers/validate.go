@@ -18,10 +18,12 @@ import (
 )
 
 type ValidateRequest struct {
-	Content  string `json:"content" binding:"required"`
-	Filename string `json:"filename"`
-	Schema   string `json:"schema"`
-	UseAI    bool   `json:"useAI,omitempty"`
+	// Content is optional if the client supplies a custom schema via SchemaContent.
+	Content       string `json:"content"`
+	Filename      string `json:"filename"`
+	Schema        string `json:"schema"`
+	SchemaContent string `json:"schemaContent,omitempty"`
+	UseAI         bool   `json:"useAI,omitempty"`
 }
 
 type ValidationError struct {
@@ -43,10 +45,11 @@ type ValidateResponse struct {
 }
 
 type FixRequest struct {
-	Content string   `json:"content" binding:"required"`
-	Fixes   []string `json:"fixTypes"`
-	Schema  string   `json:"schema"`
-	UseAI   bool     `json:"useAI,omitempty"`
+	Content       string   `json:"content" binding:"required"`
+	Fixes         []string `json:"fixTypes"`
+	Schema        string   `json:"schema"`
+	SchemaContent string   `json:"schemaContent,omitempty"`
+	UseAI         bool     `json:"useAI,omitempty"`
 }
 
 // splitYAML splits YAML into documents
@@ -902,6 +905,16 @@ func ValidateHandler(c *gin.Context) {
 		return
 	}
 
+	// If content is empty, allow processing only when schema=="custom" and schemaContent is provided.
+	if strings.TrimSpace(req.Content) == "" {
+		if strings.TrimSpace(req.Schema) == "custom" && strings.TrimSpace(req.SchemaContent) != "" {
+			// ok: client provided schemaContent for custom schema checks
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": "field 'content' is required unless using schema='custom' with schemaContent"})
+			return
+		}
+	}
+
 	if containsHelmTemplate(req.Content) {
 		resp := ValidateResponse{
 			IsValid:     false,
@@ -928,6 +941,14 @@ func ValidateHandler(c *gin.Context) {
 				Type:     "syntax",
 			})
 			canAutoFix = false
+		}
+
+		// If a JSON schema was supplied, do a basic validation: ensure the schema itself parses
+		if req.Schema == "json" && strings.TrimSpace(req.SchemaContent) != "" {
+			var js map[string]any
+			if err := json.Unmarshal([]byte(req.SchemaContent), &js); err != nil {
+				errs = append(errs, ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Invalid JSON schema: %s", err.Error()), Severity: "warning", Type: "schema"})
+			}
 		}
 	} else {
 		docs := splitYAML(req.Content)
@@ -961,6 +982,50 @@ func ValidateHandler(c *gin.Context) {
 					}
 					c.JSON(http.StatusOK, resp)
 					return
+				}
+
+				// Schema-specific lightweight checks (only run when a schema parameter is provided)
+				if req.Schema != "" {
+					if req.Schema == "kubernetes" {
+						// parsed is already unmarshaled: assert map
+						if m, ok := parsed.(map[string]any); ok {
+							if _, has := m["apiVersion"]; !has {
+								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "missing required field: apiVersion", Severity: "error", Type: "schema"})
+							}
+							if _, has := m["kind"]; !has {
+								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "missing required field: kind", Severity: "error", Type: "schema"})
+							}
+							if md, ok := m["metadata"]; !ok {
+								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "missing required field: metadata", Severity: "error", Type: "schema"})
+							} else if mdm, mok := md.(map[string]any); !mok || mdm["name"] == nil {
+								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "metadata.name is required", Severity: "error", Type: "schema"})
+							}
+						}
+					}
+
+					if req.Schema == "helm" {
+						// For helm, if template markers are present, we mark as warning (templates not auto-fixable)
+						if containsHelmTemplate(doc) {
+							errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "Detected Helm template markers - template rendering may be required", Severity: "warning", Type: "template"})
+						} else {
+							// ensure valid YAML
+							var tmp any
+							if yerr := yaml.Unmarshal([]byte(doc), &tmp); yerr != nil {
+								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Helm/values YAML error: %s", yerr.Error()), Severity: "error", Type: "schema"})
+							}
+						}
+					}
+
+					if req.Schema == "custom" && strings.TrimSpace(req.SchemaContent) != "" {
+						// validate that schema content parses either as JSON or YAML
+						var js map[string]any
+						if jerr := json.Unmarshal([]byte(req.SchemaContent), &js); jerr != nil {
+							var yv any
+							if yerr := yaml.Unmarshal([]byte(req.SchemaContent), &yv); yerr != nil {
+								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Invalid custom schema: %s", yerr.Error()), Severity: "warning", Type: "schema"})
+							}
+						}
+					}
 				}
 				// try backend fallback generator if no suggestions were found
 				fb := generateBackendSuggestion(doc)
