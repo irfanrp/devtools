@@ -15,42 +15,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
+	
+	"devformat/backend/internal/types"
 )
-
-type ValidateRequest struct {
-	// Content is optional if the client supplies a custom schema via SchemaContent.
-	Content       string `json:"content"`
-	Filename      string `json:"filename"`
-	Schema        string `json:"schema"`
-	SchemaContent string `json:"schemaContent,omitempty"`
-	UseAI         bool   `json:"useAI,omitempty"`
-}
-
-type ValidationError struct {
-	Line     int    `json:"line"`
-	Column   int    `json:"column"`
-	Message  string `json:"message"`
-	Severity string `json:"severity"`
-	Type     string `json:"type"`
-}
-
-type ValidateResponse struct {
-	IsValid     bool              `json:"isValid"`
-	Errors      []ValidationError `json:"errors"`
-	Fixed       string            `json:"fixedContent,omitempty"`
-	CanAutoFix  bool              `json:"canAutoFix"`
-	Explanation string            `json:"explanation,omitempty"`
-	// suggestedFixes is an optional list of small suggested snippets when auto-fix cannot be applied
-	SuggestedFixes []map[string]any `json:"suggestedFixes,omitempty"`
-}
-
-type FixRequest struct {
-	Content       string   `json:"content" binding:"required"`
-	Fixes         []string `json:"fixTypes"`
-	Schema        string   `json:"schema"`
-	SchemaContent string   `json:"schemaContent,omitempty"`
-	UseAI         bool     `json:"useAI,omitempty"`
-}
 
 // splitYAML splits YAML into documents
 func splitYAML(content string) []string {
@@ -897,7 +864,7 @@ func getMaxPayloadBytes() int64 {
 }
 
 func ValidateHandler(c *gin.Context) {
-	var req ValidateRequest
+	var req types.ValidateRequest
 	// Enforce maximum payload size to avoid resource exhaustion
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, getMaxPayloadBytes())
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -916,9 +883,9 @@ func ValidateHandler(c *gin.Context) {
 	}
 
 	if containsHelmTemplate(req.Content) {
-		resp := ValidateResponse{
+		resp := types.ValidateResponse{
 			IsValid:     false,
-			Errors:      []ValidationError{{Message: "Detected Helm template markers - not supported for auto-fix.", Severity: "warning", Type: "template"}},
+			Errors:      []types.ValidationError{{Message: "Detected Helm template markers - not supported for auto-fix.", Severity: "warning", Type: "template"}},
 			CanAutoFix:  false,
 			Explanation: "Content contains Helm template markers.",
 		}
@@ -927,13 +894,13 @@ func ValidateHandler(c *gin.Context) {
 	}
 
 	format := detectFormat(req.Content)
-	errs := []ValidationError{}
+	errs := []types.ValidationError{}
 	canAutoFix := true
 
 	if format == "json" {
 		var parsed any
 		if err := json.Unmarshal([]byte(req.Content), &parsed); err != nil {
-			errs = append(errs, ValidationError{
+			errs = append(errs, types.ValidationError{
 				Line:     0,
 				Column:   0,
 				Message:  fmt.Sprintf("JSON syntax error: %s", err.Error()),
@@ -947,7 +914,7 @@ func ValidateHandler(c *gin.Context) {
 		if req.Schema == "json" && strings.TrimSpace(req.SchemaContent) != "" {
 			var js map[string]any
 			if err := json.Unmarshal([]byte(req.SchemaContent), &js); err != nil {
-				errs = append(errs, ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Invalid JSON schema: %s", err.Error()), Severity: "warning", Type: "schema"})
+				errs = append(errs, types.ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Invalid JSON schema: %s", err.Error()), Severity: "warning", Type: "schema"})
 			}
 		}
 	} else {
@@ -960,7 +927,7 @@ func ValidateHandler(c *gin.Context) {
 
 			var parsed any
 			if err := yaml.Unmarshal([]byte(doc), &parsed); err != nil {
-				errs = append(errs, ValidationError{
+				errs = append(errs, types.ValidationError{
 					Line:     0,
 					Column:   0,
 					Message:  fmt.Sprintf("YAML syntax error in document %d: %s", i+1, err.Error()),
@@ -973,7 +940,7 @@ func ValidateHandler(c *gin.Context) {
 				if len(suggestions) > 0 {
 					// attach suggestions to the response via a temporary field on the first error
 					// Build a minimal response and return early with suggestedFixes
-					resp := ValidateResponse{
+					resp := types.ValidateResponse{
 						IsValid:        false,
 						Errors:         errs,
 						CanAutoFix:     false,
@@ -990,15 +957,15 @@ func ValidateHandler(c *gin.Context) {
 						// parsed is already unmarshaled: assert map
 						if m, ok := parsed.(map[string]any); ok {
 							if _, has := m["apiVersion"]; !has {
-								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "missing required field: apiVersion", Severity: "error", Type: "schema"})
+								errs = append(errs, types.ValidationError{Line: 0, Column: 0, Message: "missing required field: apiVersion", Severity: "error", Type: "schema"})
 							}
 							if _, has := m["kind"]; !has {
-								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "missing required field: kind", Severity: "error", Type: "schema"})
+								errs = append(errs, types.ValidationError{Line: 0, Column: 0, Message: "missing required field: kind", Severity: "error", Type: "schema"})
 							}
 							if md, ok := m["metadata"]; !ok {
-								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "missing required field: metadata", Severity: "error", Type: "schema"})
+								errs = append(errs, types.ValidationError{Line: 0, Column: 0, Message: "missing required field: metadata", Severity: "error", Type: "schema"})
 							} else if mdm, mok := md.(map[string]any); !mok || mdm["name"] == nil {
-								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "metadata.name is required", Severity: "error", Type: "schema"})
+								errs = append(errs, types.ValidationError{Line: 0, Column: 0, Message: "metadata.name is required", Severity: "error", Type: "schema"})
 							}
 						}
 					}
@@ -1006,12 +973,12 @@ func ValidateHandler(c *gin.Context) {
 					if req.Schema == "helm" {
 						// For helm, if template markers are present, we mark as warning (templates not auto-fixable)
 						if containsHelmTemplate(doc) {
-							errs = append(errs, ValidationError{Line: 0, Column: 0, Message: "Detected Helm template markers - template rendering may be required", Severity: "warning", Type: "template"})
+							errs = append(errs, types.ValidationError{Line: 0, Column: 0, Message: "Detected Helm template markers - template rendering may be required", Severity: "warning", Type: "template"})
 						} else {
 							// ensure valid YAML
 							var tmp any
 							if yerr := yaml.Unmarshal([]byte(doc), &tmp); yerr != nil {
-								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Helm/values YAML error: %s", yerr.Error()), Severity: "error", Type: "schema"})
+								errs = append(errs, types.ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Helm/values YAML error: %s", yerr.Error()), Severity: "error", Type: "schema"})
 							}
 						}
 					}
@@ -1022,7 +989,7 @@ func ValidateHandler(c *gin.Context) {
 						if jerr := json.Unmarshal([]byte(req.SchemaContent), &js); jerr != nil {
 							var yv any
 							if yerr := yaml.Unmarshal([]byte(req.SchemaContent), &yv); yerr != nil {
-								errs = append(errs, ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Invalid custom schema: %s", yerr.Error()), Severity: "warning", Type: "schema"})
+								errs = append(errs, types.ValidationError{Line: 0, Column: 0, Message: fmt.Sprintf("Invalid custom schema: %s", yerr.Error()), Severity: "warning", Type: "schema"})
 							}
 						}
 					}
@@ -1030,7 +997,7 @@ func ValidateHandler(c *gin.Context) {
 				// try backend fallback generator if no suggestions were found
 				fb := generateBackendSuggestion(doc)
 				if len(fb) > 0 {
-					resp := ValidateResponse{
+					resp := types.ValidateResponse{
 						IsValid:        false,
 						Errors:         errs,
 						CanAutoFix:     false,
@@ -1042,7 +1009,7 @@ func ValidateHandler(c *gin.Context) {
 				}
 				// try a targeted detection for serviceName/servicePort misindent under backend
 				if det := detectBackendMisindent(doc); len(det) > 0 {
-					resp := ValidateResponse{
+					resp := types.ValidateResponse{
 						IsValid:        false,
 						Errors:         errs,
 						CanAutoFix:     false,
@@ -1055,7 +1022,7 @@ func ValidateHandler(c *gin.Context) {
 				// If user requested AI suggestions, try Gemini before giving up
 				if req.UseAI {
 					if ai := callGeminiSuggest(doc); len(ai) > 0 {
-						resp := ValidateResponse{
+						resp := types.ValidateResponse{
 							IsValid:        false,
 							Errors:         errs,
 							CanAutoFix:     false,
@@ -1073,14 +1040,14 @@ func ValidateHandler(c *gin.Context) {
 	// Check if content is safe for auto-fix
 	if ok, reason := canAutoFixContent(req.Content); !ok {
 		canAutoFix = false
-		errs = append(errs, ValidationError{
+		errs = append(errs, types.ValidationError{
 			Line: 0, Column: 0,
 			Message:  "auto-fix disabled: " + reason,
 			Severity: "warning", Type: "autofix",
 		})
 	}
 
-	resp := ValidateResponse{
+	resp := types.ValidateResponse{
 		IsValid:     len(errs) == 0,
 		Errors:      errs,
 		CanAutoFix:  canAutoFix,
@@ -1099,7 +1066,7 @@ func ValidateHandler(c *gin.Context) {
 }
 
 func FixHandler(c *gin.Context) {
-	var req FixRequest
+	var req types.FixRequest
 	// Enforce maximum payload size to avoid resource exhaustion
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, getMaxPayloadBytes())
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1112,7 +1079,7 @@ func FixHandler(c *gin.Context) {
 			"fixedContent": nil,
 			"changes":      []any{},
 			"isValid":      false,
-			"errors":       []ValidationError{{Message: "Helm templates not supported for auto-fix.", Severity: "warning", Type: "template"}},
+			"errors":       []types.ValidationError{{Message: "Helm templates not supported for auto-fix.", Severity: "warning", Type: "template"}},
 			"canAutoFix":   false,
 			"explanation":  "Helm templates cannot be auto-fixed.",
 		})
@@ -1146,7 +1113,7 @@ func FixHandler(c *gin.Context) {
 					"fixedContent":   nil,
 					"changes":        []any{},
 					"isValid":        false,
-					"errors":         []ValidationError{{Message: fmt.Sprintf("YAML syntax error in document %d: %s", i+1, err.Error()), Severity: "error", Type: "syntax"}},
+					"errors":         []types.ValidationError{{Message: fmt.Sprintf("YAML syntax error in document %d: %s", i+1, err.Error()), Severity: "error", Type: "syntax"}},
 					"canAutoFix":     false,
 					"suggestedFixes": suggestions,
 					"explanation":    "Auto-fix could not be applied automatically. Suggestions are provided for manual review.",
@@ -1161,7 +1128,7 @@ func FixHandler(c *gin.Context) {
 						"fixedContent":   nil,
 						"changes":        []any{},
 						"isValid":        false,
-						"errors":         []ValidationError{{Message: fmt.Sprintf("YAML syntax error in document %d: %s", i+1, err.Error()), Severity: "error", Type: "syntax"}},
+						"errors":         []types.ValidationError{{Message: fmt.Sprintf("YAML syntax error in document %d: %s", i+1, err.Error()), Severity: "error", Type: "syntax"}},
 						"canAutoFix":     false,
 						"suggestedFixes": ai,
 						"explanation":    "Auto-fix could not be applied automatically. AI suggestions are provided for manual review.",
@@ -1174,7 +1141,7 @@ func FixHandler(c *gin.Context) {
 				"fixedContent": nil,
 				"changes":      []any{},
 				"isValid":      false,
-				"errors":       []ValidationError{{Message: fmt.Sprintf("YAML syntax error in document %d: %s", i+1, err.Error()), Severity: "error", Type: "syntax"}},
+				"errors":       []types.ValidationError{{Message: fmt.Sprintf("YAML syntax error in document %d: %s", i+1, err.Error()), Severity: "error", Type: "syntax"}},
 				"canAutoFix":   false,
 			})
 			return
@@ -1192,7 +1159,7 @@ func FixHandler(c *gin.Context) {
 				"fixedContent":   nil,
 				"changes":        []any{},
 				"isValid":        false,
-				"errors":         []ValidationError{{Message: "auto-fix disabled for this content. Suggestions provided.", Severity: "warning", Type: "autofix"}},
+				"errors":         []types.ValidationError{{Message: "auto-fix disabled for this content. Suggestions provided.", Severity: "warning", Type: "autofix"}},
 				"canAutoFix":     false,
 				"suggestedFixes": suggestions,
 				"explanation":    "Auto-fix disabled for safety. Please review suggestions before applying.",
@@ -1207,7 +1174,7 @@ func FixHandler(c *gin.Context) {
 					"fixedContent": nil,
 					"changes":      []any{},
 					"isValid":      false,
-					"errors":       []ValidationError{{Message: "auto-fix refused: `metadata` is null. Please correct the document manually.", Severity: "warning", Type: "autofix"}},
+					"errors":       []types.ValidationError{{Message: "auto-fix refused: `metadata` is null. Please correct the document manually.", Severity: "warning", Type: "autofix"}},
 					"canAutoFix":   false,
 				})
 				return
@@ -1220,7 +1187,7 @@ func FixHandler(c *gin.Context) {
 					"fixedContent": nil,
 					"changes":      []any{},
 					"isValid":      false,
-					"errors":       []ValidationError{{Message: "auto-fix refused: top-level `name` detected. Move `name` into `metadata.name` manually.", Severity: "warning", Type: "autofix"}},
+					"errors":       []types.ValidationError{{Message: "auto-fix refused: top-level `name` detected. Move `name` into `metadata.name` manually.", Severity: "warning", Type: "autofix"}},
 					"canAutoFix":   false,
 				})
 				return
